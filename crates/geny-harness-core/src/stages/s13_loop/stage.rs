@@ -47,11 +47,7 @@ impl StageTrait for LoopStage {
         "decision"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // If an upstream stage already decided to stop, respect that decision
         if state.loop_decision != LOOP_CONTINUE {
             state.add_event(
@@ -83,10 +79,8 @@ impl StageTrait for LoopStage {
         );
 
         // If continuing, the pipeline orchestrator will re-enter the loop
-        if decision == LOOP_COMPLETE {
-            if state.completion_signal.is_none() {
-                state.completion_signal = Some("loop_complete".to_string());
-            }
+        if decision == LOOP_COMPLETE && state.completion_signal.is_none() {
+            state.completion_signal = Some("loop_complete".to_string());
         }
 
         Ok(input)

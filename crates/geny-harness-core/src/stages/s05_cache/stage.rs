@@ -52,11 +52,7 @@ impl StageTrait for CacheStage {
         self.cache_strategy.name() == "no_cache"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         self.cache_strategy.apply_cache_markers(state);
 
         state.add_event(

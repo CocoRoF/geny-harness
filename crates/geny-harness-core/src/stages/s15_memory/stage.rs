@@ -74,11 +74,7 @@ impl StageTrait for MemoryStage {
         self.strategy.name() == "no_memory_strategy"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Run the memory update strategy
         self.strategy.update(state).await?;
 

@@ -50,18 +50,11 @@ impl StageTrait for EmitStage {
         self.chain.is_empty()
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         let results = self.chain.emit_all(state).await;
 
         let emitted_count = results.iter().filter(|r| r.emitted).count();
-        let all_channels: Vec<String> = results
-            .iter()
-            .flat_map(|r| r.channels.clone())
-            .collect();
+        let all_channels: Vec<String> = results.iter().flat_map(|r| r.channels.clone()).collect();
 
         state.add_event(
             "emit.complete",

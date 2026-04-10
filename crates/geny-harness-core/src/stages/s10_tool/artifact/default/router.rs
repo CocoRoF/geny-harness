@@ -61,15 +61,9 @@ impl Strategy for RegistryRouter {
 
 #[async_trait]
 impl ToolRouter for RegistryRouter {
-    async fn route(
-        &self,
-        tool_name: &str,
-        tool_input: &Value,
-    ) -> ToolResult {
+    async fn route(&self, tool_name: &str, tool_input: &Value) -> ToolResult {
         match self.registry.get(tool_name) {
-            Some(tool) => {
-                tool.execute(tool_input.clone(), &self.context).await
-            }
+            Some(tool) => tool.execute(tool_input.clone(), &self.context).await,
             None => {
                 // Unknown tool — return a graceful error
                 ToolResult::error(Value::String(format!(

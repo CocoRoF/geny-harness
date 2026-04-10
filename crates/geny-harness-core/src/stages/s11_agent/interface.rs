@@ -18,9 +18,5 @@ pub trait SubPipelineFactory: Strategy + Send + Sync {
 #[async_trait]
 pub trait AgentOrchestrator: Strategy + Send + Sync {
     /// Orchestrate agent delegation based on pending requests.
-    async fn orchestrate(
-        &self,
-        delegate_requests: &[Value],
-        context: &Value,
-    ) -> AgentResult;
+    async fn orchestrate(&self, delegate_requests: &[Value], context: &Value) -> AgentResult;
 }

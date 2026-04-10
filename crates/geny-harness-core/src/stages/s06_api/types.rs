@@ -37,11 +37,7 @@ impl ContentBlock {
     }
 
     /// Create a tool_use content block.
-    pub fn tool_use(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        input: Value,
-    ) -> Self {
+    pub fn tool_use(id: impl Into<String>, name: impl Into<String>, input: Value) -> Self {
         Self {
             block_type: "tool_use".to_string(),
             text: None,

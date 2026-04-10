@@ -915,7 +915,11 @@ impl PyPipelineState {
 
     /// Add an event to the log.
     #[pyo3(signature = (event_type, data=None))]
-    fn add_event(&mut self, event_type: &str, data: Option<&Bound<'_, pyo3::PyAny>>) -> PyResult<()> {
+    fn add_event(
+        &mut self,
+        event_type: &str,
+        data: Option<&Bound<'_, pyo3::PyAny>>,
+    ) -> PyResult<()> {
         let val = match data {
             Some(d) => Some(py_to_value(d)?),
             None => None,
@@ -987,10 +991,7 @@ impl PyPipelineResult {
     #[pyo3(signature = (error, state=None))]
     fn error_result(error: &str, state: Option<&PyPipelineState>) -> Self {
         Self {
-            inner: core_result::PipelineResult::error_result(
-                error,
-                state.map(|s| &s.inner),
-            ),
+            inner: core_result::PipelineResult::error_result(error, state.map(|s| &s.inner)),
         }
     }
 
@@ -1375,7 +1376,10 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("StageError", m.py().get_type::<StageError>())?;
     m.add("GuardRejectError", m.py().get_type::<GuardRejectError>())?;
     m.add("APIError", m.py().get_type::<APIError>())?;
-    m.add("ToolExecutionError", m.py().get_type::<ToolExecutionError>())?;
+    m.add(
+        "ToolExecutionError",
+        m.py().get_type::<ToolExecutionError>(),
+    )?;
     Ok(())
 }
 

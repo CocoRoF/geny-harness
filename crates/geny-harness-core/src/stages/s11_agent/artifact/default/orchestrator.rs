@@ -38,11 +38,7 @@ impl Strategy for SingleAgentOrchestrator {
 
 #[async_trait]
 impl AgentOrchestrator for SingleAgentOrchestrator {
-    async fn orchestrate(
-        &self,
-        _delegate_requests: &[Value],
-        _context: &Value,
-    ) -> AgentResult {
+    async fn orchestrate(&self, _delegate_requests: &[Value], _context: &Value) -> AgentResult {
         AgentResult::no_delegation()
     }
 }
@@ -79,11 +75,7 @@ impl Strategy for DelegateOrchestrator {
 
 #[async_trait]
 impl AgentOrchestrator for DelegateOrchestrator {
-    async fn orchestrate(
-        &self,
-        delegate_requests: &[Value],
-        context: &Value,
-    ) -> AgentResult {
+    async fn orchestrate(&self, delegate_requests: &[Value], context: &Value) -> AgentResult {
         if delegate_requests.is_empty() {
             return AgentResult::no_delegation();
         }
@@ -149,11 +141,7 @@ impl Strategy for EvaluatorOrchestrator {
 
 #[async_trait]
 impl AgentOrchestrator for EvaluatorOrchestrator {
-    async fn orchestrate(
-        &self,
-        delegate_requests: &[Value],
-        context: &Value,
-    ) -> AgentResult {
+    async fn orchestrate(&self, delegate_requests: &[Value], context: &Value) -> AgentResult {
         if delegate_requests.is_empty() {
             return AgentResult::no_delegation();
         }

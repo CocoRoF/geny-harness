@@ -47,11 +47,7 @@ impl StageTrait for GuardStage {
         "pre_flight"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         let results = self.guard_chain.check_all(state);
 
         for result in &results {
@@ -66,18 +62,11 @@ impl StageTrait for GuardStage {
                 );
 
                 let err = GuardRejectError::new(
-                    format!(
-                        "Guard '{}' rejected: {}",
-                        result.guard_name, result.message
-                    ),
+                    format!("Guard '{}' rejected: {}", result.guard_name, result.message),
                     &result.guard_name,
                 );
 
-                return Err(StageError::with_stage(
-                    err.to_string(),
-                    "guard",
-                    4,
-                ));
+                return Err(StageError::with_stage(err.to_string(), "guard", 4));
             }
         }
 

@@ -88,10 +88,7 @@ impl APIStage {
     }
 
     /// Execute the API call with retry logic.
-    async fn call_with_retry(
-        &self,
-        request: &APIRequest,
-    ) -> Result<APIResponse, StageError> {
+    async fn call_with_retry(&self, request: &APIRequest) -> Result<APIResponse, StageError> {
         let max = self.retry_strategy.max_retries();
         let mut last_error = None;
 
@@ -146,11 +143,7 @@ impl StageTrait for APIStage {
         "execution"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Build request from state
         let request = self.build_request(state);
 

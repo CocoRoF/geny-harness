@@ -53,9 +53,7 @@ impl EvaluationStrategy for SignalBasedEvaluation {
             > 0;
 
         match signal {
-            CompletionSignal::Complete => {
-                EvaluationResult::pass(1.0, "Completion signal detected")
-            }
+            CompletionSignal::Complete => EvaluationResult::pass(1.0, "Completion signal detected"),
             CompletionSignal::Continue => {
                 EvaluationResult::fail(0.5, "Continue signal — more work needed", "continue")
             }
@@ -70,11 +68,7 @@ impl EvaluationStrategy for SignalBasedEvaluation {
             }
             CompletionSignal::None => {
                 if has_pending_tools {
-                    EvaluationResult::fail(
-                        0.5,
-                        "No signal but tool calls pending",
-                        "continue",
-                    )
+                    EvaluationResult::fail(0.5, "No signal but tool calls pending", "continue")
                 } else {
                     // No signal and no tools — assume complete
                     EvaluationResult::pass(0.8, "No signal detected, assuming complete")

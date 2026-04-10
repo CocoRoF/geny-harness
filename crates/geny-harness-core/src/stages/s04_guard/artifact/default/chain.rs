@@ -12,9 +12,7 @@ pub struct DefaultGuardChain {
 
 impl DefaultGuardChain {
     pub fn new() -> Self {
-        Self {
-            guards: Vec::new(),
-        }
+        Self { guards: Vec::new() }
     }
 }
 

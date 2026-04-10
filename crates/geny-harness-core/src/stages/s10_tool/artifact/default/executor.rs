@@ -51,10 +51,7 @@ impl ToolExecutor for SequentialExecutor {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let tool_name = call
-                .get("tool_name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let tool_name = call.get("tool_name").and_then(|v| v.as_str()).unwrap_or("");
             let tool_input = call
                 .get("tool_input")
                 .cloned()

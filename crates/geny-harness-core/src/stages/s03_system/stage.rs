@@ -57,11 +57,7 @@ impl StageTrait for SystemStage {
         "ingress"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Build system prompt
         let system_prompt = self.prompt_builder.build(state);
         state.system = system_prompt.clone();

@@ -103,45 +103,110 @@ impl VTuberEmitter {
             (
                 "happy",
                 vec![
-                    "happy", "glad", "great", "wonderful", "awesome", "excellent",
-                    "joy", "pleased", "delighted", "love",
+                    "happy",
+                    "glad",
+                    "great",
+                    "wonderful",
+                    "awesome",
+                    "excellent",
+                    "joy",
+                    "pleased",
+                    "delighted",
+                    "love",
                     // Korean
-                    "행복", "기쁘", "좋아", "훌륭", "대단", "사랑", "즐거",
+                    "행복",
+                    "기쁘",
+                    "좋아",
+                    "훌륭",
+                    "대단",
+                    "사랑",
+                    "즐거",
                     // Emoji
-                    "😊", "😄", "🎉", "❤️", "💕", "🥰", "😁",
+                    "😊",
+                    "😄",
+                    "🎉",
+                    "❤️",
+                    "💕",
+                    "🥰",
+                    "😁",
                 ],
             ),
             (
                 "sad",
                 vec![
-                    "sad", "sorry", "unfortunate", "disappointed", "regret",
-                    "unhappy", "terrible", "awful",
+                    "sad",
+                    "sorry",
+                    "unfortunate",
+                    "disappointed",
+                    "regret",
+                    "unhappy",
+                    "terrible",
+                    "awful",
                     // Korean
-                    "슬프", "미안", "안타깝", "실망", "후회", "불행",
+                    "슬프",
+                    "미안",
+                    "안타깝",
+                    "실망",
+                    "후회",
+                    "불행",
                     // Emoji
-                    "😢", "😭", "💔", "😞", "😥",
+                    "😢",
+                    "😭",
+                    "💔",
+                    "😞",
+                    "😥",
                 ],
             ),
             (
                 "excited",
                 vec![
-                    "excited", "amazing", "incredible", "fantastic", "wow",
-                    "brilliant", "superb", "outstanding",
+                    "excited",
+                    "amazing",
+                    "incredible",
+                    "fantastic",
+                    "wow",
+                    "brilliant",
+                    "superb",
+                    "outstanding",
                     // Korean
-                    "신나", "놀라", "대박", "멋지", "환상", "최고",
+                    "신나",
+                    "놀라",
+                    "대박",
+                    "멋지",
+                    "환상",
+                    "최고",
                     // Emoji
-                    "🔥", "✨", "🚀", "💪", "🎊", "⭐",
+                    "🔥",
+                    "✨",
+                    "🚀",
+                    "💪",
+                    "🎊",
+                    "⭐",
                 ],
             ),
             (
                 "thinking",
                 vec![
-                    "think", "consider", "perhaps", "maybe", "hmm", "interesting",
-                    "analyze", "evaluate", "wonder",
+                    "think",
+                    "consider",
+                    "perhaps",
+                    "maybe",
+                    "hmm",
+                    "interesting",
+                    "analyze",
+                    "evaluate",
+                    "wonder",
                     // Korean
-                    "생각", "아마", "흠", "분석", "평가", "궁금",
+                    "생각",
+                    "아마",
+                    "흠",
+                    "분석",
+                    "평가",
+                    "궁금",
                     // Emoji
-                    "🤔", "💭", "🧐",
+                    "🤔",
+                    "💭",
+                    "🧐",
                 ],
             ),
         ];
@@ -179,11 +244,7 @@ impl VTuberEmitter {
                 }
             }
             // Set neutral as inverse of total detected
-            *scores.entry("neutral").or_insert(0.0) = if total_matches > 0 {
-                0.0
-            } else {
-                1.0
-            };
+            *scores.entry("neutral").or_insert(0.0) = if total_matches > 0 { 0.0 } else { 1.0 };
 
             let mut best = "neutral";
             let mut best_score = 0.0_f64;

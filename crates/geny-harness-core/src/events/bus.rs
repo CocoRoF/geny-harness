@@ -12,13 +12,15 @@ use crate::events::types::PipelineEvent;
 /// Unique handler ID for deduplication.
 static NEXT_HANDLER_ID: AtomicUsize = AtomicUsize::new(0);
 
+/// Async handler function type.
+type AsyncHandlerFn =
+    dyn Fn(PipelineEvent) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync;
+
 /// Handler can be sync or async.
 #[derive(Clone)]
 pub enum EventHandler {
     Sync(Arc<dyn Fn(&PipelineEvent) + Send + Sync>),
-    Async(
-        Arc<dyn Fn(PipelineEvent) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>,
-    ),
+    Async(Arc<AsyncHandlerFn>),
 }
 
 struct RegisteredHandler {
@@ -103,10 +105,7 @@ impl EventBus {
                         f(event);
                     }));
                     if let Err(e) = result {
-                        warn!(
-                            "Event handler failed on {}: {:?}",
-                            event.event_type, e
-                        );
+                        warn!("Event handler failed on {}: {:?}", event.event_type, e);
                     }
                 }
                 EventHandler::Async(f) => {

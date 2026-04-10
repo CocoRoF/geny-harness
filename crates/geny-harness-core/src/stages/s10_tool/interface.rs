@@ -21,9 +21,5 @@ pub trait ToolExecutor: Strategy + Send + Sync {
 #[async_trait]
 pub trait ToolRouter: Strategy + Send + Sync {
     /// Route a tool call to its implementation and execute it.
-    async fn route(
-        &self,
-        tool_name: &str,
-        tool_input: &Value,
-    ) -> ToolResult;
+    async fn route(&self, tool_name: &str, tool_input: &Value) -> ToolResult;
 }

@@ -55,11 +55,7 @@ impl StageTrait for ParseStage {
         "execution"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Parse the API response
         let mut parsed = self.parser.parse(&input);
 

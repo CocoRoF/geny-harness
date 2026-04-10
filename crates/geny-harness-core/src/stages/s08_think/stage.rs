@@ -43,10 +43,7 @@ impl ThinkStage {
         };
 
         for block in blocks {
-            let block_type = block
-                .get("type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let block_type = block.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
             if block_type == "thinking" {
                 let text = block
@@ -58,7 +55,9 @@ impl ThinkStage {
                 // Estimate tokens from text length (rough: 1 token ~= 4 chars)
                 let estimated_tokens = (text.len() as u32) / 4;
 
-                result.thinking_blocks.push(ThinkingBlock::new(text, estimated_tokens));
+                result
+                    .thinking_blocks
+                    .push(ThinkingBlock::new(text, estimated_tokens));
                 result.total_thinking_tokens += estimated_tokens;
             } else {
                 result.response_blocks.push(block.clone());
@@ -93,11 +92,7 @@ impl StageTrait for ThinkStage {
         !state.thinking_enabled
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Separate thinking from response blocks
         let mut thinking_result = self.separate_blocks(state);
 

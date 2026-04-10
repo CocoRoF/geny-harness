@@ -84,9 +84,7 @@ impl TokenTracker for DetailedTracker {
             "total_tokens": usage.total_tokens(),
         });
 
-        state
-            .metadata
-            .insert(iteration_key, breakdown);
+        state.metadata.insert(iteration_key, breakdown);
 
         // Also maintain a running list
         let history = state

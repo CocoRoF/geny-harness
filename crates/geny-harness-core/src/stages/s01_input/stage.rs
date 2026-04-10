@@ -55,11 +55,7 @@ impl StageTrait for InputStage {
         "ingress"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Validate
         if let Some(reason) = self.validator.validate(&input) {
             return Err(StageError::with_stage(

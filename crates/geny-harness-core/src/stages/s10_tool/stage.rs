@@ -24,10 +24,7 @@ impl ToolStage {
         }
     }
 
-    pub fn with_strategies(
-        executor: Box<dyn ToolExecutor>,
-        router: Box<dyn ToolRouter>,
-    ) -> Self {
+    pub fn with_strategies(executor: Box<dyn ToolExecutor>, router: Box<dyn ToolRouter>) -> Self {
         Self { executor, router }
     }
 }
@@ -56,11 +53,7 @@ impl StageTrait for ToolStage {
         state.pending_tool_calls.is_empty()
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         let tool_calls = state.pending_tool_calls.clone();
 
         if tool_calls.is_empty() {
@@ -68,7 +61,10 @@ impl StageTrait for ToolStage {
         }
 
         // Execute all tool calls
-        let results = self.executor.execute_all(&tool_calls, self.router.as_ref()).await;
+        let results = self
+            .executor
+            .execute_all(&tool_calls, self.router.as_ref())
+            .await;
 
         // Build tool results as content blocks for the next assistant turn
         let mut result_blocks: Vec<Value> = Vec::new();

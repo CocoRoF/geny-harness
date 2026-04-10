@@ -4,7 +4,6 @@ mod blocks;
 mod builder;
 
 pub use blocks::{
-    CustomBlock, DateTimeBlock, MemoryContextBlock, PersonaBlock, RulesBlock,
-    ToolInstructionsBlock,
+    CustomBlock, DateTimeBlock, MemoryContextBlock, PersonaBlock, RulesBlock, ToolInstructionsBlock,
 };
 pub use builder::{ComposablePromptBuilder, StaticPromptBuilder};

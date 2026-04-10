@@ -51,11 +51,7 @@ impl StageTrait for AgentStage {
         state.delegate_requests.is_empty()
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         let delegate_requests = state.delegate_requests.clone();
 
         if delegate_requests.is_empty() {

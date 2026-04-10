@@ -103,11 +103,7 @@ pub trait Stage: Send + Sync {
     ///
     /// # Returns
     /// Result to be passed as input to the next stage.
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError>;
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError>;
 
     /// Whether to skip this stage. Default False (always execute).
     fn should_bypass(&self, _state: &PipelineState) -> bool {
@@ -120,20 +116,12 @@ pub trait Stage: Send + Sync {
     }
 
     /// Hook called after stage execution (optional).
-    async fn on_exit(
-        &self,
-        _result: &Value,
-        _state: &mut PipelineState,
-    ) -> Result<(), StageError> {
+    async fn on_exit(&self, _result: &Value, _state: &mut PipelineState) -> Result<(), StageError> {
         Ok(())
     }
 
     /// Hook called on error. Return None to propagate, or a value to recover.
-    async fn on_error(
-        &self,
-        _error: &StageError,
-        _state: &mut PipelineState,
-    ) -> Option<Value> {
+    async fn on_error(&self, _error: &StageError, _state: &mut PipelineState) -> Option<Value> {
         None
     }
 

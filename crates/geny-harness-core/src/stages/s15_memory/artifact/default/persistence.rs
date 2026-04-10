@@ -45,11 +45,7 @@ impl Strategy for InMemoryPersistence {
 impl ConversationPersistence for InMemoryPersistence {
     async fn save(&self, session_id: &str, messages: &[Value]) -> Result<(), StageError> {
         let mut store = self.store.lock().map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to acquire lock: {}", e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to acquire lock: {}", e), "memory", 15)
         })?;
         store.insert(session_id.to_string(), messages.to_vec());
         Ok(())
@@ -57,22 +53,14 @@ impl ConversationPersistence for InMemoryPersistence {
 
     async fn load(&self, session_id: &str) -> Result<Vec<Value>, StageError> {
         let store = self.store.lock().map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to acquire lock: {}", e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to acquire lock: {}", e), "memory", 15)
         })?;
         Ok(store.get(session_id).cloned().unwrap_or_default())
     }
 
     async fn clear(&self, session_id: &str) -> Result<(), StageError> {
         let mut store = self.store.lock().map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to acquire lock: {}", e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to acquire lock: {}", e), "memory", 15)
         })?;
         store.remove(session_id);
         Ok(())
@@ -102,8 +90,7 @@ impl FilePersistence {
 
     /// Build a temp file path for atomic writes.
     fn temp_path(&self, session_id: &str) -> PathBuf {
-        self.base_dir
-            .join(format!("{}.json.tmp", session_id))
+        self.base_dir.join(format!("{}.json.tmp", session_id))
     }
 }
 
@@ -136,11 +123,7 @@ impl ConversationPersistence for FilePersistence {
         })?;
 
         let data = serde_json::to_string_pretty(messages).map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to serialize messages: {}", e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to serialize messages: {}", e), "memory", 15)
         })?;
 
         // Atomic write: write to temp file, then rename
@@ -176,19 +159,11 @@ impl ConversationPersistence for FilePersistence {
         }
 
         let data = std::fs::read_to_string(&path).map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to read {:?}: {}", path, e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to read {:?}: {}", path, e), "memory", 15)
         })?;
 
         let messages: Vec<Value> = serde_json::from_str(&data).map_err(|e| {
-            StageError::with_stage(
-                format!("Failed to parse {:?}: {}", path, e),
-                "memory",
-                15,
-            )
+            StageError::with_stage(format!("Failed to parse {:?}: {}", path, e), "memory", 15)
         })?;
 
         Ok(messages)
@@ -198,11 +173,7 @@ impl ConversationPersistence for FilePersistence {
         let path = self.session_path(session_id);
         if path.exists() {
             std::fs::remove_file(&path).map_err(|e| {
-                StageError::with_stage(
-                    format!("Failed to remove {:?}: {}", path, e),
-                    "memory",
-                    15,
-                )
+                StageError::with_stage(format!("Failed to remove {:?}: {}", path, e), "memory", 15)
             })?;
         }
         Ok(())

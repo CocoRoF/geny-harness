@@ -114,9 +114,7 @@ pub struct AggressiveCacheStrategy {
 
 impl AggressiveCacheStrategy {
     pub fn new() -> Self {
-        Self {
-            offset_from_end: 4,
-        }
+        Self { offset_from_end: 4 }
     }
 
     pub fn with_offset(offset_from_end: usize) -> Self {
@@ -200,10 +198,7 @@ impl CacheStrategy for AggressiveCacheStrategy {
                 Some(Value::Array(mut arr)) => {
                     if let Some(last) = arr.last_mut() {
                         if let Some(obj) = last.as_object_mut() {
-                            obj.insert(
-                                "cache_control".to_string(),
-                                ephemeral_cache_control(),
-                            );
+                            obj.insert("cache_control".to_string(), ephemeral_cache_control());
                         }
                     }
                     if let Some(obj) = msg.as_object_mut() {

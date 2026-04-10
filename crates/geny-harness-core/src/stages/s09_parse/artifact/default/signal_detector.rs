@@ -219,8 +219,7 @@ mod tests {
     #[test]
     fn test_structured_detector_from_text() {
         let detector = StructuredDetector::new();
-        let (signal, _) =
-            detector.detect("{\"signal\": \"delegate\"}", &Value::Null);
+        let (signal, _) = detector.detect("{\"signal\": \"delegate\"}", &Value::Null);
         assert_eq!(signal, CompletionSignal::Delegate);
     }
 

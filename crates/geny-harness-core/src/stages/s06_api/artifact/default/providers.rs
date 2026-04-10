@@ -112,7 +112,7 @@ impl APIProvider for AnthropicProvider {
         match result {
             Ok(resp) => {
                 let status = resp.status().as_u16();
-                if status >= 200 && status < 300 {
+                if (200..300).contains(&status) {
                     let raw: Value = resp.json().await.map_err(|e| {
                         APIError::with_category(
                             format!("Failed to parse response: {}", e),
@@ -273,20 +273,14 @@ impl Strategy for RecordingProvider {
 impl APIProvider for RecordingProvider {
     async fn create_message(&self, request: &APIRequest) -> Result<APIResponse, APIError> {
         // Record the request
-        self.calls
-            .lock()
-            .unwrap()
-            .push(request.to_body());
+        self.calls.lock().unwrap().push(request.to_body());
 
         // Delegate to inner provider
         self.inner.create_message(request).await
     }
 
     async fn create_message_stream(&self, request: &APIRequest) -> Result<APIResponse, APIError> {
-        self.calls
-            .lock()
-            .unwrap()
-            .push(request.to_body());
+        self.calls.lock().unwrap().push(request.to_body());
 
         self.inner.create_message_stream(request).await
     }

@@ -147,16 +147,10 @@ impl Strategy for BudgetAwareLoopController {
     }
 
     fn configure(&mut self, config: &Value) {
-        if let Some(ratio) = config
-            .get("cost_threshold_ratio")
-            .and_then(|v| v.as_f64())
-        {
+        if let Some(ratio) = config.get("cost_threshold_ratio").and_then(|v| v.as_f64()) {
             self.cost_threshold_ratio = ratio;
         }
-        if let Some(ratio) = config
-            .get("token_threshold_ratio")
-            .and_then(|v| v.as_f64())
-        {
+        if let Some(ratio) = config.get("token_threshold_ratio").and_then(|v| v.as_f64()) {
             self.token_threshold_ratio = ratio;
         }
     }

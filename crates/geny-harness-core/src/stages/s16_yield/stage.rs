@@ -47,11 +47,7 @@ impl StageTrait for YieldStage {
         "egress"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Run the formatter to shape the final output
         self.formatter.format(state);
 

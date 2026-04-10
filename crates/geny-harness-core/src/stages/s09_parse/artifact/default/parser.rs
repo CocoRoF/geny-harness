@@ -73,9 +73,10 @@ impl ResponseParser for DefaultParser {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string(),
-                        tool_input: block.get("input").cloned().unwrap_or(Value::Object(
-                            serde_json::Map::new(),
-                        )),
+                        tool_input: block
+                            .get("input")
+                            .cloned()
+                            .unwrap_or(Value::Object(serde_json::Map::new())),
                     };
                     parsed.tool_calls.push(tool_call);
                 }

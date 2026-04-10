@@ -52,11 +52,7 @@ impl StageTrait for EvaluateStage {
         "decision"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Build evaluation context from state
         let context = serde_json::json!({
             "final_text": state.final_text,
@@ -71,7 +67,10 @@ impl StageTrait for EvaluateStage {
         let mut result = self.strategy.evaluate(&input, &context).await;
 
         // Also run the scorer for an additional quality signal
-        let quality_score = self.scorer.score(&input, &serde_json::to_value(&result.metadata).unwrap_or(Value::Null));
+        let quality_score = self.scorer.score(
+            &input,
+            &serde_json::to_value(&result.metadata).unwrap_or(Value::Null),
+        );
         // Use the scorer's score if the strategy didn't produce a meaningful one
         if result.score == 0.0 && quality_score > 0.0 {
             result.score = quality_score;

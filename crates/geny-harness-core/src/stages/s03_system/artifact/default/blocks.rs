@@ -97,7 +97,10 @@ impl PromptBlock for DateTimeBlock {
 
     fn render(&self, _state: &PipelineState) -> String {
         let now = Utc::now();
-        format!("Current date and time: {}", now.format("%Y-%m-%d %H:%M:%S UTC"))
+        format!(
+            "Current date and time: {}",
+            now.format("%Y-%m-%d %H:%M:%S UTC")
+        )
     }
 }
 

@@ -26,7 +26,8 @@ impl Session {
         freshness_policy: Option<FreshnessPolicy>,
     ) -> Self {
         let now = Utc::now();
-        let session_id = session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()[..12].to_string());
+        let session_id =
+            session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()[..12].to_string());
         let mut state = PipelineState::new();
         state.session_id = session_id.clone();
 
@@ -58,11 +59,8 @@ impl Session {
 
     /// Evaluate current freshness.
     pub fn freshness(&self) -> FreshnessStatus {
-        self.freshness_policy.evaluate(
-            self.created_at,
-            self.last_active,
-            self.state.messages.len(),
-        )
+        self.freshness_policy
+            .evaluate(self.created_at, self.last_active, self.state.messages.len())
     }
 
     /// Execute input through pipeline, preserving state.

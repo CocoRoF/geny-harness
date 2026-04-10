@@ -69,11 +69,7 @@ impl MCPServerConnection {
         self.tools.clone()
     }
 
-    pub async fn call_tool(
-        &self,
-        tool_name: &str,
-        _arguments: &Value,
-    ) -> Result<Value, String> {
+    pub async fn call_tool(&self, tool_name: &str, _arguments: &Value) -> Result<Value, String> {
         Err(format!(
             "MCP tool call '{}' requires active MCP server connection",
             tool_name

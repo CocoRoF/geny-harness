@@ -55,11 +55,7 @@ impl StageTrait for TokenStage {
         "execution"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Track token usage from the latest response
         let usage = self.tracker.track(state);
 
@@ -75,8 +71,8 @@ impl StageTrait for TokenStage {
             let total_cache_tokens =
                 state.cache_metrics.total_cache_writes + state.cache_metrics.total_cache_reads;
             if total_cache_tokens > 0 {
-                state.cache_metrics.cache_hit_rate = state.cache_metrics.total_cache_reads as f64
-                    / total_cache_tokens as f64;
+                state.cache_metrics.cache_hit_rate =
+                    state.cache_metrics.total_cache_reads as f64 / total_cache_tokens as f64;
             }
         }
 

@@ -54,10 +54,7 @@ impl PipelineBuilder {
     /// Configure system prompt stage.
     pub fn with_system(mut self, prompt: &str) -> Self {
         let mut config = HashMap::new();
-        config.insert(
-            "prompt".to_string(),
-            Value::String(prompt.to_string()),
-        );
+        config.insert("prompt".to_string(), Value::String(prompt.to_string()));
         self.stage_configs.insert("system".to_string(), config);
         self
     }
@@ -65,71 +62,53 @@ impl PipelineBuilder {
     /// Configure tools.
     pub fn with_tools(mut self, registry: ToolRegistry) -> Self {
         self.tool_registry = Some(registry);
-        self.stage_configs
-            .entry("tool".to_string())
-            .or_default();
+        self.stage_configs.entry("tool".to_string()).or_default();
         self
     }
 
     /// Enable guard stage.
     pub fn with_guard(mut self) -> Self {
-        self.stage_configs
-            .entry("guard".to_string())
-            .or_default();
+        self.stage_configs.entry("guard".to_string()).or_default();
         self
     }
 
     /// Configure cache stage.
     pub fn with_cache(mut self, strategy: &str) -> Self {
         let mut config = HashMap::new();
-        config.insert(
-            "strategy".to_string(),
-            Value::String(strategy.to_string()),
-        );
+        config.insert("strategy".to_string(), Value::String(strategy.to_string()));
         self.stage_configs.insert("cache".to_string(), config);
         self
     }
 
     /// Enable context stage.
     pub fn with_context(mut self) -> Self {
-        self.stage_configs
-            .entry("context".to_string())
-            .or_default();
+        self.stage_configs.entry("context".to_string()).or_default();
         self
     }
 
     /// Enable memory stage.
     pub fn with_memory(mut self) -> Self {
-        self.stage_configs
-            .entry("memory".to_string())
-            .or_default();
+        self.stage_configs.entry("memory".to_string()).or_default();
         self
     }
 
     /// Configure loop stage.
     pub fn with_loop(mut self, max_turns: u32) -> Self {
         let mut config = HashMap::new();
-        config.insert(
-            "max_turns".to_string(),
-            Value::Number(max_turns.into()),
-        );
+        config.insert("max_turns".to_string(), Value::Number(max_turns.into()));
         self.stage_configs.insert("loop".to_string(), config);
         self
     }
 
     /// Enable think stage.
     pub fn with_think(mut self) -> Self {
-        self.stage_configs
-            .entry("think".to_string())
-            .or_default();
+        self.stage_configs.entry("think".to_string()).or_default();
         self
     }
 
     /// Enable agent stage.
     pub fn with_agent(mut self) -> Self {
-        self.stage_configs
-            .entry("agent".to_string())
-            .or_default();
+        self.stage_configs.entry("agent".to_string()).or_default();
         self
     }
 
@@ -143,9 +122,7 @@ impl PipelineBuilder {
 
     /// Enable emit stage.
     pub fn with_emit(mut self) -> Self {
-        self.stage_configs
-            .entry("emit".to_string())
-            .or_default();
+        self.stage_configs.entry("emit".to_string()).or_default();
         self
     }
 
@@ -174,12 +151,10 @@ impl PipelineBuilder {
             ..Default::default()
         };
 
-        let pipeline = Pipeline::new(Some(config));
-
         // Stage registration will be implemented when concrete stages are available.
         // Always register: Input (s01), API (s06), Token (s07), Parse (s09), Yield (s16)
         // Conditionally register others based on stage_configs.
 
-        pipeline
+        Pipeline::new(Some(config))
     }
 }

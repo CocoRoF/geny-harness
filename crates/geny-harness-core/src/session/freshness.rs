@@ -55,11 +55,11 @@ pub struct FreshnessPolicy {
 impl Default for FreshnessPolicy {
     fn default() -> Self {
         Self {
-            idle_timeout_secs: 30 * 60,      // 30 minutes
-            warn_threshold_secs: 20 * 60,    // 20 minutes
+            idle_timeout_secs: 30 * 60,   // 30 minutes
+            warn_threshold_secs: 20 * 60, // 20 minutes
             compact_message_count: 100,
             reset_message_count: 500,
-            max_age_secs: 4 * 60 * 60,       // 4 hours
+            max_age_secs: 4 * 60 * 60, // 4 hours
         }
     }
 }
@@ -110,10 +110,7 @@ mod tests {
     fn test_freshness_stale_reset_message_count() {
         let policy = FreshnessPolicy::default();
         let now = Utc::now();
-        assert_eq!(
-            policy.evaluate(now, now, 500),
-            FreshnessStatus::StaleReset
-        );
+        assert_eq!(policy.evaluate(now, now, 500), FreshnessStatus::StaleReset);
     }
 
     #[test]

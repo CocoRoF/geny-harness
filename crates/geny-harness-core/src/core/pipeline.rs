@@ -105,11 +105,7 @@ impl Pipeline {
     /// Phase A: Stage 1 (Input) — runs once
     /// Phase B: Stage 2~13 (Agent Loop) — repeats until loop_decision != "continue"
     /// Phase C: Stage 14~16 (Finalize) — runs once
-    pub async fn run(
-        &self,
-        input: Value,
-        state: Option<PipelineState>,
-    ) -> PipelineResult {
+    pub async fn run(&self, input: Value, state: Option<PipelineState>) -> PipelineResult {
         let mut state = self.init_state(state);
         let input_preview = truncate_str(&input.to_string(), Self::EVENT_DATA_TRUNCATE);
         self.emit_event("pipeline.start", |e| {
@@ -236,11 +232,7 @@ impl Pipeline {
                 data: event_dict
                     .get("data")
                     .and_then(|v| v.as_object())
-                    .map(|m| {
-                        m.iter()
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect()
-                    })
+                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
                     .unwrap_or_default(),
             };
             let _ = tx_state.try_send(event);
@@ -254,21 +246,20 @@ impl Pipeline {
         tokio::spawn(async move {
             match self_run_phases_standalone(input, &mut state).await {
                 Ok(()) => {
-                    let _ = tx_final
-                        .send(
-                            PipelineEvent::new("pipeline.complete").with_data_value(
+                    let _ =
+                        tx_final
+                            .send(PipelineEvent::new("pipeline.complete").with_data_value(
                                 "iterations",
                                 Value::Number(state.iteration.into()),
-                            ),
-                        )
-                        .await;
+                            ))
+                            .await;
                 }
                 Err(e) => {
                     let _ = tx_final
-                        .send(PipelineEvent::new("pipeline.error").with_data_value(
-                            "error",
-                            Value::String(e.to_string()),
-                        ))
+                        .send(
+                            PipelineEvent::new("pipeline.error")
+                                .with_data_value("error", Value::String(e.to_string())),
+                        )
                         .await;
                 }
             }
@@ -280,11 +271,7 @@ impl Pipeline {
     // ── Events ──
 
     /// Register event handler. Returns unsubscribe function.
-    pub fn on(
-        &self,
-        event_type: &str,
-        handler: EventHandler,
-    ) -> Box<dyn Fn() + Send + Sync> {
+    pub fn on(&self, event_type: &str, handler: EventHandler) -> Box<dyn Fn() + Send + Sync> {
         self.event_bus.on(event_type, handler)
     }
 
@@ -498,9 +485,7 @@ mod tests {
         pipeline.register_stage(make_mock("parse", 9, "parsed"));
         pipeline.register_stage(make_mock("yield", 16, "final"));
 
-        let result = pipeline
-            .run(Value::String("hello".to_string()), None)
-            .await;
+        let result = pipeline.run(Value::String("hello".to_string()), None).await;
 
         assert!(result.success);
         assert_eq!(result.text, "final");

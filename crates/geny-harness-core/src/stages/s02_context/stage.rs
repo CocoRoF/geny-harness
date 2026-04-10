@@ -71,11 +71,7 @@ impl StageTrait for ContextStage {
         "ingress"
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        state: &mut PipelineState,
-    ) -> Result<Value, StageError> {
+    async fn execute(&self, input: Value, state: &mut PipelineState) -> Result<Value, StageError> {
         // Build context (e.g., load history)
         self.context_strategy.build_context(state).await?;
 

@@ -54,10 +54,7 @@ impl EmitterChain {
     }
 
     /// Emit to all registered emitters, collecting results.
-    pub async fn emit_all(
-        &self,
-        state: &crate::core::state::PipelineState,
-    ) -> Vec<EmitResult> {
+    pub async fn emit_all(&self, state: &crate::core::state::PipelineState) -> Vec<EmitResult> {
         let mut results = Vec::new();
         for emitter in &self.emitters {
             let result = emitter.emit(state).await;

@@ -44,11 +44,7 @@ impl SessionManager {
     }
 
     /// Create and store a new session.
-    pub fn create(
-        &mut self,
-        pipeline: Pipeline,
-        session_id: Option<String>,
-    ) -> &mut Session {
+    pub fn create(&mut self, pipeline: Pipeline, session_id: Option<String>) -> &mut Session {
         let session = Session::new(
             session_id.clone(),
             pipeline,
