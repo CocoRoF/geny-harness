@@ -57,28 +57,20 @@ jobs:
 
   # ── Build wheels for all platforms ─────────────────────────────────────
   build-wheels:
-    name: Build wheels (${{ matrix.target }} on ${{ matrix.os }})
+    name: Build wheels (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: [test]
     if: ${{ always() && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          # Linux x86_64
+          # Linux x86_64 — runs in manylinux Docker container
           - os: ubuntu-latest
-            target: x86_64
-          # Linux aarch64
-          - os: ubuntu-latest
-            target: aarch64
           # Windows x86_64
           - os: windows-latest
-            target: x64
-          # macOS x86_64
-          - os: macos-13
-            target: x86_64
-          # macOS Apple Silicon (arm64)
+          # macOS Apple Silicon (arm64) — macos-latest is arm64
           - os: macos-latest
-            target: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
 
@@ -91,14 +83,13 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.target }}
           args: --release --out dist -m crates/geny-harness-py/Cargo.toml -i python3.12
           manylinux: auto
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          name: wheels-${{ matrix.os }}
           path: dist/*.whl
 
   # ── Build source distribution ──────────────────────────────────────────
