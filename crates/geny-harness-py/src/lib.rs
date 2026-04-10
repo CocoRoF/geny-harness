@@ -1642,7 +1642,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.3.0")?;
+    m.add("__version__", "0.4.0")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;
