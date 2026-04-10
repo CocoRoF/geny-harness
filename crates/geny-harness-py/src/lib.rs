@@ -25,7 +25,7 @@ create_exception!(geny_harness, ToolExecutionError, GenyHarnessError);
 
 // ─── Helper: serde_json::Value <-> Python object ───────────────────────────
 
-fn value_to_py(py: Python<'_>, v: &Value) -> PyObject {
+fn value_to_py(py: Python<'_>, v: &Value) -> Py<PyAny> {
     pythonize::pythonize(py, v)
         .map(|bound| bound.into())
         .unwrap_or_else(|_| py.None().into())
@@ -37,7 +37,7 @@ fn py_to_value(obj: &Bound<'_, pyo3::PyAny>) -> PyResult<Value> {
     })
 }
 
-fn hashmap_to_py(py: Python<'_>, map: &HashMap<String, Value>) -> PyResult<PyObject> {
+fn hashmap_to_py(py: Python<'_>, map: &HashMap<String, Value>) -> PyResult<Py<PyAny>> {
     let dict = PyDict::new(py);
     for (k, v) in map {
         dict.set_item(k, value_to_py(py, v))?;
@@ -53,7 +53,7 @@ fn py_to_hashmap(obj: &Bound<'_, pyo3::PyAny>) -> PyResult<HashMap<String, Value
 
 // ─── ErrorCategory ─────────────────────────────────────────────────────────
 
-#[pyclass(name = "ErrorCategory", eq, eq_int)]
+#[pyclass(name = "ErrorCategory", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PyErrorCategory {
     #[pyo3(name = "RATE_LIMITED")]
@@ -134,7 +134,7 @@ impl PyErrorCategory {
 
 // ─── TokenUsage ────────────────────────────────────────────────────────────
 
-#[pyclass(name = "TokenUsage")]
+#[pyclass(name = "TokenUsage", from_py_object)]
 #[derive(Clone)]
 pub struct PyTokenUsage {
     inner: core_state::TokenUsage,
@@ -228,7 +228,7 @@ impl PyTokenUsage {
 
 // ─── CacheMetrics ──────────────────────────────────────────────────────────
 
-#[pyclass(name = "CacheMetrics")]
+#[pyclass(name = "CacheMetrics", from_py_object)]
 #[derive(Clone)]
 pub struct PyCacheMetrics {
     inner: core_state::CacheMetrics,
@@ -307,7 +307,7 @@ impl PyCacheMetrics {
 
 // ─── ModelConfig ───────────────────────────────────────────────────────────
 
-#[pyclass(name = "ModelConfig")]
+#[pyclass(name = "ModelConfig", from_py_object)]
 #[derive(Clone)]
 pub struct PyModelConfig {
     inner: core_config::ModelConfig,
@@ -427,7 +427,7 @@ impl PyModelConfig {
 
 // ─── PipelineConfig ────────────────────────────────────────────────────────
 
-#[pyclass(name = "PipelineConfig")]
+#[pyclass(name = "PipelineConfig", from_py_object)]
 #[derive(Clone)]
 pub struct PyPipelineConfig {
     inner: core_config::PipelineConfig,
@@ -567,7 +567,7 @@ impl PyPipelineConfig {
     }
 
     #[getter]
-    fn artifacts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn artifacts(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for (k, v) in &self.inner.artifacts {
             dict.set_item(k, v)?;
@@ -581,7 +581,7 @@ impl PyPipelineConfig {
     }
 
     #[getter]
-    fn metadata(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn metadata(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         hashmap_to_py(py, &self.inner.metadata)
     }
 
@@ -645,7 +645,7 @@ impl PyPipelineState {
     // ── Messages ──
 
     #[getter]
-    fn system(&self, py: Python<'_>) -> PyObject {
+    fn system(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &self.inner.system)
     }
 
@@ -656,7 +656,7 @@ impl PyPipelineState {
     }
 
     #[getter]
-    fn messages(&self, py: Python<'_>) -> PyObject {
+    fn messages(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &Value::Array(self.inner.messages.clone()))
     }
 
@@ -743,7 +743,7 @@ impl PyPipelineState {
     }
 
     #[getter]
-    fn tools(&self, py: Python<'_>) -> PyObject {
+    fn tools(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &Value::Array(self.inner.tools.clone()))
     }
 
@@ -875,7 +875,7 @@ impl PyPipelineState {
     }
 
     #[getter]
-    fn final_output(&self, py: Python<'_>) -> PyObject {
+    fn final_output(&self, py: Python<'_>) -> Py<PyAny> {
         match &self.inner.final_output {
             Some(v) => value_to_py(py, v),
             None => py.None(),
@@ -907,7 +907,7 @@ impl PyPipelineState {
     // ── Events ──
 
     #[getter]
-    fn events(&self, py: Python<'_>) -> PyObject {
+    fn events(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &Value::Array(self.inner.events.clone()))
     }
 
@@ -963,7 +963,7 @@ impl PyPipelineState {
 
 // ─── PipelineResult ────────────────────────────────────────────────────────
 
-#[pyclass(name = "PipelineResult")]
+#[pyclass(name = "PipelineResult", from_py_object)]
 #[derive(Clone)]
 pub struct PyPipelineResult {
     inner: core_result::PipelineResult,
@@ -1006,7 +1006,7 @@ impl PyPipelineResult {
     }
 
     #[getter]
-    fn output(&self, py: Python<'_>) -> PyObject {
+    fn output(&self, py: Python<'_>) -> Py<PyAny> {
         match &self.inner.output {
             Some(v) => value_to_py(py, v),
             None => py.None(),
@@ -1058,7 +1058,7 @@ impl PyPipelineResult {
     }
 
     #[getter]
-    fn events(&self, py: Python<'_>) -> PyObject {
+    fn events(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &Value::Array(self.inner.events.clone()))
     }
 
@@ -1078,12 +1078,12 @@ impl PyPipelineResult {
     }
 
     #[getter]
-    fn metadata(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn metadata(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         hashmap_to_py(py, &self.inner.metadata)
     }
 
     #[getter]
-    fn thinking_history(&self, py: Python<'_>) -> PyObject {
+    fn thinking_history(&self, py: Python<'_>) -> Py<PyAny> {
         value_to_py(py, &Value::Array(self.inner.thinking_history.clone()))
     }
 
@@ -1103,7 +1103,7 @@ impl PyPipelineResult {
 
 // ─── PipelineEvent ─────────────────────────────────────────────────────────
 
-#[pyclass(name = "PipelineEvent")]
+#[pyclass(name = "PipelineEvent", from_py_object)]
 #[derive(Clone)]
 pub struct PyPipelineEvent {
     inner: core_events::PipelineEvent,
@@ -1173,7 +1173,7 @@ impl PyPipelineEvent {
     }
 
     #[getter]
-    fn data(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn data(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         hashmap_to_py(py, &self.inner.data)
     }
 
@@ -1208,7 +1208,7 @@ impl PyPipelineEvent {
 
 // ─── StrategyInfo ──────────────────────────────────────────────────────────
 
-#[pyclass(name = "StrategyInfo")]
+#[pyclass(name = "StrategyInfo", from_py_object)]
 #[derive(Clone)]
 pub struct PyStrategyInfo {
     inner: core_stage::StrategyInfo,
@@ -1254,7 +1254,7 @@ impl PyStrategyInfo {
     }
 
     #[getter]
-    fn config(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn config(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         hashmap_to_py(py, &self.inner.config)
     }
 
@@ -1274,7 +1274,7 @@ impl PyStrategyInfo {
 
 // ─── StageDescription ──────────────────────────────────────────────────────
 
-#[pyclass(name = "StageDescription")]
+#[pyclass(name = "StageDescription", from_py_object)]
 #[derive(Clone)]
 pub struct PyStageDescription {
     inner: core_stage::StageDescription,
