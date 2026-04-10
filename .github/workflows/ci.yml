@@ -96,7 +96,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python (non-Linux)
+        if: runner.os != 'Linux'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -104,7 +105,9 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          args: --release --out dist -m crates/geny-harness-py/Cargo.toml
+          # Linux: manylinux container has no host Python, use -i to specify interpreter inside container
+          # macOS/Windows: uses setup-python installed interpreter
+          args: --release --out dist -m crates/geny-harness-py/Cargo.toml -i python3.12
           manylinux: auto
 
       - name: Upload wheel

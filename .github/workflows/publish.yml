@@ -82,7 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python (non-Linux)
+        if: runner.os != 'Linux'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -91,7 +92,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist -m crates/geny-harness-py/Cargo.toml
+          args: --release --out dist -m crates/geny-harness-py/Cargo.toml -i python3.12
           manylinux: auto
 
       - name: Upload wheels
