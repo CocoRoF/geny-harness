@@ -1,0 +1,20 @@
+[package]
+name = "geny-harness-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "PyO3 bindings for geny-harness — Rust-powered Python agent pipeline"
+
+[lib]
+name = "geny_harness"
+crate-type = ["cdylib"]
+
+[dependencies]
+geny-harness-core = { path = "../geny-harness-core" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3-async-runtimes = { version = "0.23", features = ["tokio-runtime"] }
+pythonize = "0.23"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

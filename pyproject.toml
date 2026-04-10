@@ -1,0 +1,49 @@
+[build-system]
+requires = ["maturin>=1.7"]
+build-backend = "maturin"
+
+[project]
+name = "geny-harness"
+version = "0.2.3"
+description = "Rust-powered agent pipeline library — drop-in replacement for geny-executor"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "CocoRoF", email = "cocorof@users.noreply.github.com" },
+]
+keywords = [
+    "agent",
+    "pipeline",
+    "anthropic",
+    "claude",
+    "harness",
+    "ai",
+    "llm",
+    "mcp",
+    "orchestration",
+    "rust",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+    "Framework :: AsyncIO",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "geny_harness._native"
+python-source = "python"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/python"]
