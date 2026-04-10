@@ -3,20 +3,16 @@
 Drop-in replacement for geny-executor, built with PyO3/maturin.
 
 Usage:
-    from geny_harness import PipelineConfig, PipelineState, PipelineResult
-    from geny_harness import TokenUsage, CacheMetrics, ModelConfig
-    from geny_harness import ErrorCategory, PipelineEvent
+    from geny_harness import Pipeline, PipelineConfig, PipelinePresets
+    from geny_harness import PipelineState, PipelineResult, TokenUsage
 
-    config = PipelineConfig(name="my-agent", api_key="sk-...")
-    state = PipelineState()
-    config.apply_to_state(state)
-
-    result = PipelineResult.from_state(state)
+    pipeline = PipelinePresets.agent(api_key="sk-...", model="claude-sonnet-4-20250514")
+    result = await pipeline.run("Hello!")
 """
 
 from geny_harness._native import __version__
 
-# Core data types
+# Core data types (from Rust via PyO3)
 from geny_harness._native import (
     ErrorCategory,
     TokenUsage,
@@ -30,7 +26,7 @@ from geny_harness._native import (
     StageDescription,
 )
 
-# Exception hierarchy
+# Exception hierarchy (from Rust via PyO3)
 from geny_harness._native import (
     GenyHarnessError,
     PipelineError,
@@ -40,9 +36,16 @@ from geny_harness._native import (
     ToolExecutionError,
 )
 
+# Python orchestration layer
+from geny_harness.core.pipeline import Pipeline
+from geny_harness.core.presets import PipelinePresets
+from geny_harness.core.builder import PipelineBuilder
+from geny_harness.core.stage import Stage, Strategy
+from geny_harness.events.bus import EventBus
+
 __all__ = [
     "__version__",
-    # Core data types
+    # Rust data types
     "ErrorCategory",
     "TokenUsage",
     "CacheMetrics",
@@ -60,4 +63,12 @@ __all__ = [
     "GuardRejectError",
     "APIError",
     "ToolExecutionError",
+    # Python orchestration
+    "Pipeline",
+    "PipelinePresets",
+    "PipelineBuilder",
+    "Stage",
+    "Strategy",
+    # Events
+    "EventBus",
 ]

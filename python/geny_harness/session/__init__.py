@@ -1,7 +1,13 @@
-"""Session management and lifecycle.
+"""Session management and lifecycle."""
 
-Session types will be exposed here once the Rust session module
-provides PyO3-compatible types.
-"""
+from geny_harness.session.session import Session
+from geny_harness.session.manager import SessionManager, SessionInfo
+from geny_harness.session.freshness import FreshnessPolicy, FreshnessStatus
 
-__all__: list[str] = []
+__all__ = [
+    "Session",
+    "SessionManager",
+    "SessionInfo",
+    "FreshnessPolicy",
+    "FreshnessStatus",
+]

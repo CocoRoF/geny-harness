@@ -892,6 +892,40 @@ impl PyPipelineState {
         Ok(())
     }
 
+    // ── Tool execution ──
+
+    #[getter]
+    fn pending_tool_calls(&self, py: Python<'_>) -> Py<PyAny> {
+        value_to_py(py, &serde_json::Value::Array(self.inner.pending_tool_calls.clone()))
+    }
+
+    #[setter]
+    fn set_pending_tool_calls(&mut self, v: &Bound<'_, pyo3::PyAny>) -> PyResult<()> {
+        let val = py_to_value(v)?;
+        if let serde_json::Value::Array(arr) = val {
+            self.inner.pending_tool_calls = arr;
+        } else {
+            self.inner.pending_tool_calls = vec![val];
+        }
+        Ok(())
+    }
+
+    #[getter]
+    fn tool_results(&self, py: Python<'_>) -> Py<PyAny> {
+        value_to_py(py, &serde_json::Value::Array(self.inner.tool_results.clone()))
+    }
+
+    #[setter]
+    fn set_tool_results(&mut self, v: &Bound<'_, pyo3::PyAny>) -> PyResult<()> {
+        let val = py_to_value(v)?;
+        if let serde_json::Value::Array(arr) = val {
+            self.inner.tool_results = arr;
+        } else {
+            self.inner.tool_results = vec![val];
+        }
+        Ok(())
+    }
+
     // ── Context window ──
 
     #[getter]
@@ -1387,7 +1421,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.2.3")?;
+    m.add("__version__", "0.3.0")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;

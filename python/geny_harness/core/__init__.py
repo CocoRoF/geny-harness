@@ -12,7 +12,6 @@ from geny_harness._native import (
     StageDescription,
 )
 
-# Exception hierarchy
 from geny_harness._native import (
     GenyHarnessError,
     PipelineError,
@@ -21,6 +20,11 @@ from geny_harness._native import (
     APIError,
     ToolExecutionError,
 )
+
+from geny_harness.core.pipeline import Pipeline
+from geny_harness.core.presets import PipelinePresets
+from geny_harness.core.builder import PipelineBuilder
+from geny_harness.core.stage import Stage, Strategy
 
 __all__ = [
     "ErrorCategory",
@@ -38,4 +42,9 @@ __all__ = [
     "GuardRejectError",
     "APIError",
     "ToolExecutionError",
+    "Pipeline",
+    "PipelinePresets",
+    "PipelineBuilder",
+    "Stage",
+    "Strategy",
 ]
