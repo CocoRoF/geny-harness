@@ -1,19 +1,27 @@
-"""geny-harness: Rust-powered agent pipeline library.
+"""geny-harness: Rust-native agent pipeline engine.
 
-Drop-in replacement for geny-executor, built with PyO3/maturin.
+All types and execution are backed by Rust via PyO3.
 
 Usage:
-    from geny_harness import Pipeline, PipelineConfig, PipelinePresets
-    from geny_harness import PipelineState, PipelineResult, TokenUsage
+    from geny_harness import Pipeline, PipelinePresets
 
-    pipeline = PipelinePresets.agent(api_key="sk-...", model="claude-sonnet-4-20250514")
+    pipeline = PipelinePresets.agent(
+        api_key="sk-ant-...",
+        model="claude-sonnet-4-20250514",
+        system_prompt="You are a helpful assistant.",
+    )
     result = await pipeline.run("Hello!")
+    print(result.text)
 """
 
 from geny_harness._native import __version__
 
-# Core data types (from Rust via PyO3)
+# Rust-native types (via PyO3)
 from geny_harness._native import (
+    # Core engine
+    Pipeline,
+    PipelinePresets,
+    # Data types
     ErrorCategory,
     TokenUsage,
     CacheMetrics,
@@ -24,10 +32,7 @@ from geny_harness._native import (
     PipelineEvent,
     StrategyInfo,
     StageDescription,
-)
-
-# Exception hierarchy (from Rust via PyO3)
-from geny_harness._native import (
+    # Exceptions
     GenyHarnessError,
     PipelineError,
     StageError,
@@ -36,16 +41,12 @@ from geny_harness._native import (
     ToolExecutionError,
 )
 
-# Python orchestration layer
-from geny_harness.core.pipeline import Pipeline
-from geny_harness.core.presets import PipelinePresets
-from geny_harness.core.builder import PipelineBuilder
-from geny_harness.core.stage import Stage, Strategy
-from geny_harness.events.bus import EventBus
-
 __all__ = [
     "__version__",
-    # Rust data types
+    # Core engine (Rust native)
+    "Pipeline",
+    "PipelinePresets",
+    # Data types (Rust native)
     "ErrorCategory",
     "TokenUsage",
     "CacheMetrics",
@@ -63,12 +64,4 @@ __all__ = [
     "GuardRejectError",
     "APIError",
     "ToolExecutionError",
-    # Python orchestration
-    "Pipeline",
-    "PipelinePresets",
-    "PipelineBuilder",
-    "Stage",
-    "Strategy",
-    # Events
-    "EventBus",
 ]

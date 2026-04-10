@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use geny_harness_core::core::config as core_config;
 use geny_harness_core::core::errors as core_errors;
@@ -896,7 +897,10 @@ impl PyPipelineState {
 
     #[getter]
     fn pending_tool_calls(&self, py: Python<'_>) -> Py<PyAny> {
-        value_to_py(py, &serde_json::Value::Array(self.inner.pending_tool_calls.clone()))
+        value_to_py(
+            py,
+            &serde_json::Value::Array(self.inner.pending_tool_calls.clone()),
+        )
     }
 
     #[setter]
@@ -912,7 +916,10 @@ impl PyPipelineState {
 
     #[getter]
     fn tool_results(&self, py: Python<'_>) -> Py<PyAny> {
-        value_to_py(py, &serde_json::Value::Array(self.inner.tool_results.clone()))
+        value_to_py(
+            py,
+            &serde_json::Value::Array(self.inner.tool_results.clone()),
+        )
     }
 
     #[setter]
@@ -992,6 +999,13 @@ impl PyPipelineState {
             self.inner.current_stage,
             self.inner.total_cost_usd
         )
+    }
+}
+
+impl PyPipelineState {
+    /// Consume this wrapper and return the inner Rust state.
+    pub fn into_inner(self) -> core_state::PipelineState {
+        self.inner
     }
 }
 
@@ -1132,6 +1146,13 @@ impl PyPipelineResult {
                 self.inner.text.clone()
             }
         )
+    }
+}
+
+impl PyPipelineResult {
+    /// Create a PyPipelineResult from an inner Rust PipelineResult.
+    pub fn from_inner(inner: core_result::PipelineResult) -> Self {
+        Self { inner }
     }
 }
 
@@ -1388,6 +1409,204 @@ impl PyStageDescription {
     }
 }
 
+// ─── Pipeline (native engine wrapper) ─────────────────────────────────────
+
+/// Python-visible wrapper around the Rust `Pipeline`.
+///
+/// Because `Pipeline::run` takes `&self` (shared reference), we can store the
+/// pipeline behind a simple `Arc` — no mutex needed.
+#[pyclass(name = "Pipeline")]
+pub struct PyPipeline {
+    inner: Arc<geny_harness_core::core::pipeline::Pipeline>,
+}
+
+#[pymethods]
+impl PyPipeline {
+    /// Create a new Pipeline, optionally from a PipelineConfig.
+    #[new]
+    #[pyo3(signature = (config=None))]
+    fn new(config: Option<PyPipelineConfig>) -> Self {
+        let rust_config = config.map(|c| c.inner);
+        let pipeline = geny_harness_core::core::pipeline::Pipeline::new(rust_config);
+        Self {
+            inner: Arc::new(pipeline),
+        }
+    }
+
+    /// Run the pipeline asynchronously.
+    ///
+    /// ```python
+    /// result = await pipeline.run("Hello!")
+    /// result = await pipeline.run({"text": "Hello!"}, state=my_state)
+    /// ```
+    #[pyo3(signature = (input, state=None))]
+    fn run<'py>(
+        &self,
+        py: Python<'py>,
+        input: &Bound<'_, PyAny>,
+        state: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let pipeline = Arc::clone(&self.inner);
+        let input_val = py_to_value(input)?;
+        // State is almost always None — Pipeline creates default internally.
+        // If provided, we create a fresh state and copy key fields.
+        let rust_state: Option<core_state::PipelineState> = match state {
+            Some(obj) if !obj.is_none() => {
+                // Extract key config fields from the Python state
+                let mut s = core_state::PipelineState::new();
+                if let Ok(v) = obj
+                    .getattr("session_id")
+                    .and_then(|a| a.extract::<String>())
+                {
+                    s.session_id = v;
+                }
+                if let Ok(v) = obj.getattr("model").and_then(|a| a.extract::<String>()) {
+                    s.model = v;
+                }
+                if let Ok(v) = obj
+                    .getattr("max_iterations")
+                    .and_then(|a| a.extract::<u32>())
+                {
+                    s.max_iterations = v;
+                }
+                Some(s)
+            }
+            _ => None,
+        };
+
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = pipeline.run(input_val, rust_state).await;
+            Ok(PyPipelineResult::from_inner(result))
+        })
+    }
+
+    /// Return a list of `StageDescription` for every slot (1..=16).
+    fn describe(&self) -> Vec<PyStageDescription> {
+        self.inner
+            .describe()
+            .into_iter()
+            .map(|d| PyStageDescription { inner: d })
+            .collect()
+    }
+
+    /// Read-only property: list of stage descriptions (mirrors `describe()`).
+    #[getter]
+    fn stages(&self) -> Vec<PyStageDescription> {
+        self.describe()
+    }
+
+    fn __repr__(&self) -> String {
+        let descs = self.inner.describe();
+        let active: Vec<&str> = descs
+            .iter()
+            .filter(|d| d.is_active)
+            .map(|d| d.name.as_str())
+            .collect();
+        format!("Pipeline(stages=[{}])", active.join(", "))
+    }
+}
+
+// ─── PipelinePresets ──────────────────────────────────────────────────────
+
+/// Pre-configured pipeline factory methods.
+///
+/// ```python
+/// pipeline = PipelinePresets.minimal("sk-...", "claude-sonnet-4-20250514")
+/// pipeline = PipelinePresets.agent("sk-...", "claude-sonnet-4-20250514", "You are helpful.", max_turns=30)
+/// ```
+#[pyclass(name = "PipelinePresets")]
+pub struct PyPipelinePresets;
+
+#[pymethods]
+impl PyPipelinePresets {
+    /// Minimal pipeline: Input -> API -> Parse -> Yield.
+    #[staticmethod]
+    fn minimal(api_key: &str, model: &str) -> PyPipeline {
+        let pipeline = geny_harness_core::core::presets::PipelinePresets::minimal(api_key, model);
+        PyPipeline {
+            inner: Arc::new(pipeline),
+        }
+    }
+
+    /// Chat pipeline with context, system prompt, guard, cache, tools, loop, memory.
+    #[staticmethod]
+    #[pyo3(signature = (api_key, model, system_prompt, tools=None))]
+    fn chat(
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        tools: Option<Py<PyAny>>,
+    ) -> PyPipeline {
+        // TODO: convert Python tools to ToolRegistry when bridge is implemented
+        let _ = tools;
+        let pipeline = geny_harness_core::core::presets::PipelinePresets::chat(
+            api_key,
+            model,
+            system_prompt,
+            None,
+        );
+        PyPipeline {
+            inner: Arc::new(pipeline),
+        }
+    }
+
+    /// Full agent pipeline with all 16 stages.
+    #[staticmethod]
+    #[pyo3(signature = (api_key, model, system_prompt, tools=None, max_turns=50))]
+    fn agent(
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        tools: Option<Py<PyAny>>,
+        max_turns: u32,
+    ) -> PyPipeline {
+        // TODO: convert Python tools to ToolRegistry when bridge is implemented
+        let _ = tools;
+        let pipeline = geny_harness_core::core::presets::PipelinePresets::agent(
+            api_key,
+            model,
+            system_prompt,
+            None,
+            Some(max_turns),
+        );
+        PyPipeline {
+            inner: Arc::new(pipeline),
+        }
+    }
+
+    /// Evaluator pipeline: Input -> System -> API -> Parse -> Evaluate -> Yield.
+    #[staticmethod]
+    fn evaluator(api_key: &str, model: &str, evaluation_prompt: &str) -> PyPipeline {
+        let pipeline = geny_harness_core::core::presets::PipelinePresets::evaluator(
+            api_key,
+            model,
+            evaluation_prompt,
+        );
+        PyPipeline {
+            inner: Arc::new(pipeline),
+        }
+    }
+
+    /// VTuber/TTS pipeline with all stages and full emit support.
+    #[staticmethod]
+    #[pyo3(signature = (api_key, model, persona, tools=None))]
+    fn geny_vtuber(
+        api_key: &str,
+        model: &str,
+        persona: &str,
+        tools: Option<Py<PyAny>>,
+    ) -> PyPipeline {
+        // TODO: convert Python tools to ToolRegistry when bridge is implemented
+        let _ = tools;
+        let pipeline = geny_harness_core::core::presets::PipelinePresets::geny_vtuber(
+            api_key, model, persona, None,
+        );
+        PyPipeline {
+            inner: Arc::new(pipeline),
+        }
+    }
+}
+
 // ─── Module registration ───────────────────────────────────────────────────
 
 fn register_classes(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1401,6 +1620,8 @@ fn register_classes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPipelineEvent>()?;
     m.add_class::<PyStrategyInfo>()?;
     m.add_class::<PyStageDescription>()?;
+    m.add_class::<PyPipeline>()?;
+    m.add_class::<PyPipelinePresets>()?;
     Ok(())
 }
 

@@ -1,9 +1,2 @@
-"""Event system for pipeline observability."""
-
+"""Events — re-exports from Rust native module."""
 from geny_harness._native import PipelineEvent
-from geny_harness.events.bus import EventBus
-
-__all__ = [
-    "EventBus",
-    "PipelineEvent",
-]

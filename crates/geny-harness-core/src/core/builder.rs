@@ -5,6 +5,23 @@ use std::collections::HashMap;
 
 use crate::core::config::{ModelConfig, PipelineConfig};
 use crate::core::pipeline::Pipeline;
+use crate::stages::s01_input::InputStage;
+use crate::stages::s02_context::ContextStage;
+use crate::stages::s03_system::artifact::default::StaticPromptBuilder;
+use crate::stages::s03_system::SystemStage;
+use crate::stages::s04_guard::GuardStage;
+use crate::stages::s05_cache::CacheStage;
+use crate::stages::s06_api::APIStage;
+use crate::stages::s07_token::TokenStage;
+use crate::stages::s08_think::ThinkStage;
+use crate::stages::s09_parse::ParseStage;
+use crate::stages::s10_tool::ToolStage;
+use crate::stages::s11_agent::AgentStage;
+use crate::stages::s12_evaluate::EvaluateStage;
+use crate::stages::s13_loop::LoopStage;
+use crate::stages::s14_emit::EmitStage;
+use crate::stages::s15_memory::MemoryStage;
+use crate::stages::s16_yield::YieldStage;
 use crate::tools::registry::ToolRegistry;
 
 /// Fluent API for building pipelines without manual stage registration.
@@ -151,10 +168,68 @@ impl PipelineBuilder {
             ..Default::default()
         };
 
-        // Stage registration will be implemented when concrete stages are available.
-        // Always register: Input (s01), API (s06), Token (s07), Parse (s09), Yield (s16)
-        // Conditionally register others based on stage_configs.
+        let mut pipeline = Pipeline::new(Some(config));
 
-        Pipeline::new(Some(config))
+        // ── Always-on stages ──
+        pipeline.register_stage(Box::new(InputStage::new()));
+        pipeline.register_stage(Box::new(APIStage::new()));
+        pipeline.register_stage(Box::new(TokenStage::new()));
+        pipeline.register_stage(Box::new(ParseStage::new()));
+        pipeline.register_stage(Box::new(YieldStage::new()));
+
+        // ── Conditionally registered stages ──
+
+        if self.stage_configs.contains_key("context") {
+            pipeline.register_stage(Box::new(ContextStage::new()));
+        }
+
+        if self.stage_configs.contains_key("system") {
+            let prompt = self
+                .stage_configs
+                .get("system")
+                .and_then(|c| c.get("prompt"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("You are a helpful assistant.");
+            let stage = SystemStage::with_builder(Box::new(StaticPromptBuilder::new(prompt)));
+            pipeline.register_stage(Box::new(stage));
+        }
+
+        if self.stage_configs.contains_key("guard") {
+            pipeline.register_stage(Box::new(GuardStage::new()));
+        }
+
+        if self.stage_configs.contains_key("cache") {
+            pipeline.register_stage(Box::new(CacheStage::new()));
+        }
+
+        if self.stage_configs.contains_key("think") {
+            pipeline.register_stage(Box::new(ThinkStage::new()));
+        }
+
+        if self.stage_configs.contains_key("tool") {
+            pipeline.register_stage(Box::new(ToolStage::new()));
+        }
+
+        if self.stage_configs.contains_key("agent") {
+            pipeline.register_stage(Box::new(AgentStage::new()));
+        }
+
+        if self.stage_configs.contains_key("evaluate") {
+            pipeline.register_stage(Box::new(EvaluateStage::new()));
+        }
+
+        if self.stage_configs.contains_key("loop") {
+            pipeline.register_stage(Box::new(LoopStage::new()));
+        }
+
+        if self.stage_configs.contains_key("emit") {
+            pipeline.register_stage(Box::new(EmitStage::new()));
+        }
+
+        if self.stage_configs.contains_key("memory") {
+            pipeline.register_stage(Box::new(MemoryStage::new()));
+        }
+
+        pipeline
     }
 }
