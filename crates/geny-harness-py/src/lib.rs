@@ -1410,18 +1410,90 @@ impl PyStageDescription {
     }
 }
 
+// ─── sync_state_to_python helper ─────────────────────────────────────────
+
+/// Write key fields from a Rust PipelineState back to a Python PipelineState object.
+///
+/// This is the reverse of `extract_state` — after the Rust pipeline finishes,
+/// we push the modified state (messages, cost, iteration, etc.) back to the
+/// Python-side PipelineState so multi-turn sessions see accumulated history.
+fn sync_state_to_python(
+    py_state: &Bound<'_, PyAny>,
+    rust_state: &core_state::PipelineState,
+) -> PyResult<()> {
+    let py = py_state.py();
+
+    // Messages — the most critical field for multi-turn memory
+    let msgs_val = Value::Array(rust_state.messages.clone());
+    py_state.setattr("messages", value_to_py(py, &msgs_val))?;
+
+    // System prompt (may have been enriched by context/system stages)
+    py_state.setattr("system", value_to_py(py, &rust_state.system))?;
+
+    // Iteration counter
+    py_state.setattr("iteration", rust_state.iteration)?;
+
+    // Model (may have been changed by config)
+    py_state.setattr("model", &rust_state.model)?;
+
+    // Token usage
+    let tu = PyTokenUsage {
+        inner: rust_state.token_usage.clone(),
+    };
+    py_state.setattr("token_usage", tu.into_pyobject(py)?)?;
+
+    // Cost
+    py_state.setattr("total_cost_usd", rust_state.total_cost_usd)?;
+
+    // Cache metrics
+    let cm = PyCacheMetrics {
+        inner: rust_state.cache_metrics.clone(),
+    };
+    py_state.setattr("cache_metrics", cm.into_pyobject(py)?)?;
+
+    // Loop control
+    py_state.setattr("loop_decision", &rust_state.loop_decision)?;
+    py_state.setattr("completion_signal", rust_state.completion_signal.clone())?;
+    py_state.setattr("completion_detail", rust_state.completion_detail.clone())?;
+
+    // Output
+    py_state.setattr("final_text", &rust_state.final_text)?;
+    match &rust_state.final_output {
+        Some(v) => py_state.setattr("final_output", value_to_py(py, v))?,
+        None => py_state.setattr("final_output", py.None())?,
+    }
+
+    // Tool state
+    let pending = Value::Array(rust_state.pending_tool_calls.clone());
+    py_state.setattr("pending_tool_calls", value_to_py(py, &pending))?;
+    let results = Value::Array(rust_state.tool_results.clone());
+    py_state.setattr("tool_results", value_to_py(py, &results))?;
+
+    // Events log
+    let events = Value::Array(rust_state.events.clone());
+    py_state.setattr("events", value_to_py(py, &events))?;
+
+    Ok(())
+}
+
 // ─── PipelineEventStream (async iterator for run_stream) ──────────────────
 
 /// Python async iterator that yields `PipelineEvent` objects from an mpsc channel.
 ///
+/// After iteration completes, call `sync_state(py_state)` to write the final
+/// pipeline state back to the Python PipelineState object for multi-turn persistence.
+///
 /// Usage from Python:
 /// ```python
-/// async for event in pipeline.run_stream("Hello!"):
+/// stream = await pipeline.run_stream("Hello!", state=my_state)
+/// async for event in stream:
 ///     print(event.type, event.data)
+/// stream.sync_state(my_state)  # persist state for next turn
 /// ```
 #[pyclass(name = "PipelineEventStream")]
 pub struct PyPipelineEventStream {
     rx: Arc<tokio::sync::Mutex<mpsc::Receiver<core_events::PipelineEvent>>>,
+    final_state: Arc<tokio::sync::Mutex<Option<core_state::PipelineState>>>,
 }
 
 #[pymethods]
@@ -1440,6 +1512,25 @@ impl PyPipelineEventStream {
                     "stream exhausted",
                 )),
             }
+        })
+    }
+
+    /// Synchronize the final pipeline state back to a Python PipelineState object.
+    ///
+    /// Must be called AFTER the async iteration completes to persist messages,
+    /// iteration count, token usage, etc. for multi-turn sessions.
+    fn sync_state<'py>(&self, py: Python<'py>, state: &Bound<'_, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        let final_state = Arc::clone(&self.final_state);
+        let state_ref: Py<PyAny> = state.clone().unbind();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let guard = final_state.lock().await;
+            if let Some(ref rust_state) = *guard {
+                Python::attach(|py| {
+                    let obj = state_ref.bind(py);
+                    sync_state_to_python(obj, rust_state)
+                })?;
+            }
+            Ok(())
         })
     }
 }
@@ -1484,9 +1575,20 @@ impl PyPipeline {
         let pipeline = Arc::clone(&self.inner);
         let input_val = py_to_value(input)?;
         let rust_state = Self::extract_state(state)?;
+        // Keep a reference to the Python state so we can sync back after execution
+        let py_state_ref: Option<Py<PyAny>> = state
+            .filter(|s| !s.is_none())
+            .map(|s| s.clone().unbind());
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let result = pipeline.run(input_val, rust_state).await;
+            let (result, final_state) = pipeline.run_returning_state(input_val, rust_state).await;
+            // Sync the final Rust state back to the Python PipelineState object
+            if let Some(py_state) = py_state_ref {
+                Python::attach(|py| {
+                    let obj = py_state.bind(py);
+                    sync_state_to_python(obj, &final_state)
+                })?;
+            }
             Ok(PyPipelineResult::from_inner(result))
         })
     }
@@ -1512,9 +1614,10 @@ impl PyPipeline {
 
         // Enter Tokio runtime context via future_into_py, then spawn pipeline
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let rx = pipeline.run_stream_arc(input_val, rust_state);
+            let (rx, state_holder) = pipeline.run_stream_arc(input_val, rust_state);
             Ok(PyPipelineEventStream {
                 rx: Arc::new(tokio::sync::Mutex::new(rx)),
+                final_state: state_holder,
             })
         })
     }
@@ -1726,7 +1829,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.5.1")?;
+    m.add("__version__", "0.5.2")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;

@@ -65,6 +65,8 @@ class Session:
         stream = await self._pipeline.run_stream(input_text, self._state)
         async for event in stream:
             yield event
+        # Sync the final Rust state back to our Python state for multi-turn persistence
+        await stream.sync_state(self._state)
 
     def reset_state(self) -> None:
         """Clear state for fresh start."""

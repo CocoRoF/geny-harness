@@ -106,6 +106,19 @@ impl Pipeline {
     /// Phase B: Stage 2~13 (Agent Loop) — repeats until loop_decision != "continue"
     /// Phase C: Stage 14~16 (Finalize) — runs once
     pub async fn run(&self, input: Value, state: Option<PipelineState>) -> PipelineResult {
+        let (result, _state) = self.run_returning_state(input, state).await;
+        result
+    }
+
+    /// Execute the full pipeline and return both the result AND the final state.
+    ///
+    /// This is essential for multi-turn sessions where the caller needs to
+    /// persist state (messages, iteration, cost) across runs.
+    pub async fn run_returning_state(
+        &self,
+        input: Value,
+        state: Option<PipelineState>,
+    ) -> (PipelineResult, PipelineState) {
         let mut state = self.init_state(state);
         let input_preview = truncate_str(&input.to_string(), Self::EVENT_DATA_TRUNCATE);
         self.emit_event("pipeline.start", |e| {
@@ -120,14 +133,15 @@ impl Pipeline {
                     e.with_data_value("iterations", Value::Number(state.iteration.into()))
                 })
                 .await;
-                result
+                (result, state)
             }
             Err(e) => {
                 self.emit_event("pipeline.error", |ev| {
                     ev.with_data_value("error", Value::String(e.to_string()))
                 })
                 .await;
-                PipelineResult::error_result(&e.to_string(), Some(&state))
+                let result = PipelineResult::error_result(&e.to_string(), Some(&state));
+                (result, state)
             }
         }
     }
@@ -283,16 +297,19 @@ impl Pipeline {
 
     /// Streaming mode with Arc — spawns pipeline execution in a background task.
     ///
-    /// This is the preferred entry point from PyO3 bindings where the caller
-    /// needs to consume events as an async iterator while the pipeline runs
-    /// concurrently.
+    /// Returns (event_receiver, final_state_holder). The state holder is populated
+    /// after pipeline execution completes. Callers must sync the final state back
+    /// to their session state for multi-turn persistence.
     pub fn run_stream_arc(
         self: &Arc<Self>,
         input: Value,
         state: Option<PipelineState>,
-    ) -> mpsc::Receiver<PipelineEvent> {
+    ) -> (mpsc::Receiver<PipelineEvent>, Arc<tokio::sync::Mutex<Option<PipelineState>>>) {
         let (tx, rx) = mpsc::channel(256);
         let pipeline = Arc::clone(self);
+        let state_holder: Arc<tokio::sync::Mutex<Option<PipelineState>>> =
+            Arc::new(tokio::sync::Mutex::new(None));
+        let state_holder_clone = state_holder.clone();
 
         tokio::spawn(async move {
             let mut state = pipeline.init_state(state);
@@ -375,11 +392,13 @@ impl Pipeline {
                 }
             }
 
-            // Cleanup
+            // Cleanup and store final state for caller to sync back
             unsub();
+            state.event_listener = None;
+            *state_holder_clone.lock().await = Some(state);
         });
 
-        rx
+        (rx, state_holder)
     }
 
     // ── Events ──
