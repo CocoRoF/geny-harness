@@ -181,7 +181,12 @@ impl Pipeline {
         Ok(())
     }
 
-    /// Streaming mode — returns a channel receiver for PipelineEvents.
+    /// Streaming mode — runs phases inline, sending events through the channel.
+    ///
+    /// Returns an `mpsc::Receiver<PipelineEvent>` that receives events as each
+    /// stage completes. The pipeline runs on the current task (not spawned),
+    /// so the caller should consume events from a separate task or use
+    /// `run_stream_arc` for the spawned variant.
     pub async fn run_stream(
         &self,
         input: Value,
@@ -202,7 +207,7 @@ impl Pipeline {
 
         // Capture EventBus events
         let tx_bus = tx.clone();
-        let _unsub = self.event_bus.on_sync("*", move |event| {
+        let unsub = self.event_bus.on_sync("*", move |event| {
             let _ = tx_bus.try_send(event.clone());
         });
 
@@ -238,24 +243,130 @@ impl Pipeline {
             let _ = tx_state.try_send(event);
         }));
 
-        // Run pipeline in background task
-        let tx_final = tx;
-        // We need to move self's stage references — clone what we need
-        // Since we can't move self, we'll need to restructure this
-        // For now, run phases and send completion
-        tokio::spawn(async move {
-            match self_run_phases_standalone(input, &mut state).await {
-                Ok(()) => {
-                    let _ =
-                        tx_final
-                            .send(PipelineEvent::new("pipeline.complete").with_data_value(
+        // Run phases inline (not spawned) — events are sent through tx as stages execute
+        match self.run_phases(input, &mut state).await {
+            Ok(()) => {
+                let _ = tx
+                    .send(
+                        PipelineEvent::new("pipeline.complete")
+                            .with_data_value(
                                 "iterations",
                                 Value::Number(state.iteration.into()),
-                            ))
-                            .await;
+                            )
+                            .with_data_value(
+                                "success",
+                                Value::Bool(true),
+                            )
+                            .with_data_value(
+                                "text",
+                                Value::String(state.final_text.clone()),
+                            ),
+                    )
+                    .await;
+            }
+            Err(e) => {
+                let _ = tx
+                    .send(
+                        PipelineEvent::new("pipeline.error")
+                            .with_data_value("error", Value::String(e.to_string())),
+                    )
+                    .await;
+            }
+        }
+
+        // Cleanup
+        unsub();
+        state.event_listener = None;
+
+        rx
+    }
+
+    /// Streaming mode with Arc — spawns pipeline execution in a background task.
+    ///
+    /// This is the preferred entry point from PyO3 bindings where the caller
+    /// needs to consume events as an async iterator while the pipeline runs
+    /// concurrently.
+    pub fn run_stream_arc(
+        self: &Arc<Self>,
+        input: Value,
+        state: Option<PipelineState>,
+    ) -> mpsc::Receiver<PipelineEvent> {
+        let (tx, rx) = mpsc::channel(256);
+        let pipeline = Arc::clone(self);
+
+        tokio::spawn(async move {
+            let mut state = pipeline.init_state(state);
+
+            // Send initial event
+            let input_preview = truncate_str(&input.to_string(), Self::EVENT_DATA_TRUNCATE);
+            let _ = tx
+                .send(
+                    PipelineEvent::new("pipeline.start")
+                        .with_data_value("input", Value::String(input_preview)),
+                )
+                .await;
+
+            // Capture EventBus events
+            let tx_bus = tx.clone();
+            let unsub = pipeline.event_bus.on_sync("*", move |event| {
+                let _ = tx_bus.try_send(event.clone());
+            });
+
+            // Capture state.add_event() calls
+            let tx_state = tx.clone();
+            state.event_listener = Some(Box::new(move |event_dict| {
+                let event = PipelineEvent {
+                    event_type: event_dict
+                        .get("type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    stage: event_dict
+                        .get("stage")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    iteration: event_dict
+                        .get("iteration")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as u32,
+                    timestamp: event_dict
+                        .get("timestamp")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    data: event_dict
+                        .get("data")
+                        .and_then(|v| v.as_object())
+                        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                        .unwrap_or_default(),
+                };
+                let _ = tx_state.try_send(event);
+            }));
+
+            // Run pipeline phases
+            match pipeline.run_phases(input, &mut state).await {
+                Ok(()) => {
+                    let _ = tx
+                        .send(
+                            PipelineEvent::new("pipeline.complete")
+                                .with_data_value(
+                                    "iterations",
+                                    Value::Number(state.iteration.into()),
+                                )
+                                .with_data_value(
+                                    "success",
+                                    Value::Bool(true),
+                                )
+                                .with_data_value(
+                                    "text",
+                                    Value::String(state.final_text.clone()),
+                                ),
+                        )
+                        .await;
                 }
                 Err(e) => {
-                    let _ = tx_final
+                    let _ = tx
                         .send(
                             PipelineEvent::new("pipeline.error")
                                 .with_data_value("error", Value::String(e.to_string())),
@@ -263,6 +374,9 @@ impl Pipeline {
                         .await;
                 }
             }
+
+            // Cleanup
+            unsub();
         });
 
         rx
@@ -401,16 +515,6 @@ impl Pipeline {
         let event = builder(PipelineEvent::new(event_type));
         self.event_bus.emit(&event).await;
     }
-}
-
-// Standalone helper for run_stream — temporary until Arc<Pipeline> refactor
-async fn self_run_phases_standalone(
-    _input: Value,
-    _state: &mut PipelineState,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // TODO: This needs proper implementation with Arc<Pipeline>
-    // For now, run_stream is a structural placeholder
-    Ok(())
 }
 
 fn truncate_str(s: &str, max_len: usize) -> String {

@@ -210,7 +210,7 @@ dependencies = [
 
 [[package]]
 name = "geny-harness-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "geny-harness-py"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "geny-harness-core",
  "pyo3",

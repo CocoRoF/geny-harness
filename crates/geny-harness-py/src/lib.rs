@@ -7,6 +7,7 @@ use pyo3::types::PyDict;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 
 use geny_harness_core::core::config as core_config;
 use geny_harness_core::core::errors as core_errors;
@@ -1409,6 +1410,40 @@ impl PyStageDescription {
     }
 }
 
+// ─── PipelineEventStream (async iterator for run_stream) ──────────────────
+
+/// Python async iterator that yields `PipelineEvent` objects from an mpsc channel.
+///
+/// Usage from Python:
+/// ```python
+/// async for event in pipeline.run_stream("Hello!"):
+///     print(event.type, event.data)
+/// ```
+#[pyclass(name = "PipelineEventStream")]
+pub struct PyPipelineEventStream {
+    rx: Arc<tokio::sync::Mutex<mpsc::Receiver<core_events::PipelineEvent>>>,
+}
+
+#[pymethods]
+impl PyPipelineEventStream {
+    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __anext__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let rx = Arc::clone(&self.rx);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let mut guard = rx.lock().await;
+            match guard.recv().await {
+                Some(event) => Ok(PyPipelineEvent { inner: event }),
+                None => Err(pyo3::exceptions::PyStopAsyncIteration::new_err(
+                    "stream exhausted",
+                )),
+            }
+        })
+    }
+}
+
 // ─── Pipeline (native engine wrapper) ─────────────────────────────────────
 
 /// Python-visible wrapper around the Rust `Pipeline`.
@@ -1448,35 +1483,34 @@ impl PyPipeline {
     ) -> PyResult<Bound<'py, PyAny>> {
         let pipeline = Arc::clone(&self.inner);
         let input_val = py_to_value(input)?;
-        // State is almost always None — Pipeline creates default internally.
-        // If provided, we create a fresh state and copy key fields.
-        let rust_state: Option<core_state::PipelineState> = match state {
-            Some(obj) if !obj.is_none() => {
-                // Extract key config fields from the Python state
-                let mut s = core_state::PipelineState::new();
-                if let Ok(v) = obj
-                    .getattr("session_id")
-                    .and_then(|a| a.extract::<String>())
-                {
-                    s.session_id = v;
-                }
-                if let Ok(v) = obj.getattr("model").and_then(|a| a.extract::<String>()) {
-                    s.model = v;
-                }
-                if let Ok(v) = obj
-                    .getattr("max_iterations")
-                    .and_then(|a| a.extract::<u32>())
-                {
-                    s.max_iterations = v;
-                }
-                Some(s)
-            }
-            _ => None,
-        };
+        let rust_state = Self::extract_state(state)?;
 
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             let result = pipeline.run(input_val, rust_state).await;
             Ok(PyPipelineResult::from_inner(result))
+        })
+    }
+
+    /// Streaming execution — returns an async iterator of PipelineEvents.
+    ///
+    /// ```python
+    /// async for event in pipeline.run_stream("Hello!", state=my_state):
+    ///     print(event.type, event.stage, event.data)
+    /// ```
+    #[pyo3(signature = (input, state=None))]
+    fn run_stream(
+        &self,
+        input: &Bound<'_, PyAny>,
+        state: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<PyPipelineEventStream> {
+        let input_val = py_to_value(input)?;
+        let rust_state = Self::extract_state(state)?;
+
+        // Use run_stream_arc which spawns the pipeline in a background task
+        let rx = self.inner.run_stream_arc(input_val, rust_state);
+
+        Ok(PyPipelineEventStream {
+            rx: Arc::new(tokio::sync::Mutex::new(rx)),
         })
     }
 
@@ -1503,6 +1537,50 @@ impl PyPipeline {
             .map(|d| d.name.as_str())
             .collect();
         format!("Pipeline(stages=[{}])", active.join(", "))
+    }
+}
+
+impl PyPipeline {
+    /// Extract a Rust PipelineState from a Python state object.
+    fn extract_state(
+        state: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Option<core_state::PipelineState>> {
+        match state {
+            Some(obj) if !obj.is_none() => {
+                let mut s = core_state::PipelineState::new();
+                if let Ok(v) = obj
+                    .getattr("session_id")
+                    .and_then(|a| a.extract::<String>())
+                {
+                    s.session_id = v;
+                }
+                if let Ok(v) = obj.getattr("model").and_then(|a| a.extract::<String>()) {
+                    s.model = v;
+                }
+                if let Ok(v) = obj
+                    .getattr("max_iterations")
+                    .and_then(|a| a.extract::<u32>())
+                {
+                    s.max_iterations = v;
+                }
+                // Copy messages if present
+                if let Ok(msgs) = obj.getattr("messages") {
+                    if let Ok(v) = py_to_value(&msgs) {
+                        if let Value::Array(arr) = v {
+                            s.messages = arr;
+                        }
+                    }
+                }
+                // Copy system prompt if present
+                if let Ok(sys) = obj.getattr("system") {
+                    if let Ok(v) = py_to_value(&sys) {
+                        s.system = v;
+                    }
+                }
+                Ok(Some(s))
+            }
+            _ => Ok(None),
+        }
     }
 }
 
@@ -1620,6 +1698,7 @@ fn register_classes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPipelineEvent>()?;
     m.add_class::<PyStrategyInfo>()?;
     m.add_class::<PyStageDescription>()?;
+    m.add_class::<PyPipelineEventStream>()?;
     m.add_class::<PyPipeline>()?;
     m.add_class::<PyPipelinePresets>()?;
     Ok(())
@@ -1642,7 +1721,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.4.0")?;
+    m.add("__version__", "0.5.0")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;
