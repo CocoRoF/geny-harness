@@ -1493,24 +1493,29 @@ impl PyPipeline {
 
     /// Streaming execution — returns an async iterator of PipelineEvents.
     ///
+    /// Must be awaited first, then used with async for:
     /// ```python
-    /// async for event in pipeline.run_stream("Hello!", state=my_state):
+    /// stream = await pipeline.run_stream("Hello!", state=my_state)
+    /// async for event in stream:
     ///     print(event.type, event.stage, event.data)
     /// ```
     #[pyo3(signature = (input, state=None))]
-    fn run_stream(
+    fn run_stream<'py>(
         &self,
+        py: Python<'py>,
         input: &Bound<'_, PyAny>,
         state: Option<&Bound<'_, PyAny>>,
-    ) -> PyResult<PyPipelineEventStream> {
+    ) -> PyResult<Bound<'py, PyAny>> {
         let input_val = py_to_value(input)?;
         let rust_state = Self::extract_state(state)?;
+        let pipeline = Arc::clone(&self.inner);
 
-        // Use run_stream_arc which spawns the pipeline in a background task
-        let rx = self.inner.run_stream_arc(input_val, rust_state);
-
-        Ok(PyPipelineEventStream {
-            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+        // Enter Tokio runtime context via future_into_py, then spawn pipeline
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let rx = pipeline.run_stream_arc(input_val, rust_state);
+            Ok(PyPipelineEventStream {
+                rx: Arc::new(tokio::sync::Mutex::new(rx)),
+            })
         })
     }
 
@@ -1721,7 +1726,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.5.0")?;
+    m.add("__version__", "0.5.1")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;

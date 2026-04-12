@@ -62,7 +62,8 @@ class Session:
     async def run_stream(self, input_text: Any) -> AsyncIterator[PipelineEvent]:
         """Streaming execution — yields PipelineEvents."""
         self._last_active = datetime.now(timezone.utc)
-        async for event in self._pipeline.run_stream(input_text, self._state):
+        stream = await self._pipeline.run_stream(input_text, self._state)
+        async for event in stream:
             yield event
 
     def reset_state(self) -> None:

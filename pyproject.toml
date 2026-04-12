@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "geny-harness"
-version = "0.5.0"
+version = "0.5.1"
 description = "Rust-powered agent pipeline library — drop-in replacement for geny-executor"
 readme = "README.md"
 license = "MIT"
