@@ -1469,9 +1469,8 @@ fn sync_state_to_python(
     let results = Value::Array(rust_state.tool_results.clone());
     py_state.setattr("tool_results", value_to_py(py, &results))?;
 
-    // Events log
-    let events = Value::Array(rust_state.events.clone());
-    py_state.setattr("events", value_to_py(py, &events))?;
+    // Note: `events` has no setter on PyPipelineState (read-only diagnostic log).
+    // It is not needed for multi-turn persistence, so we skip it.
 
     Ok(())
 }
@@ -1829,7 +1828,7 @@ fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version
-    m.add("__version__", "0.5.2")?;
+    m.add("__version__", "0.5.3")?;
 
     // Register exception classes on root module
     register_exceptions(m)?;
