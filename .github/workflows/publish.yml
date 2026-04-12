@@ -118,8 +118,11 @@ jobs:
     name: Publish to TestPyPI
     needs: [build-wheels, build-sdist]
     if: >-
-      (github.event_name == 'release') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+      always() &&
+      needs.build-wheels.result == 'success' &&
+      needs.build-sdist.result == 'success' &&
+      ((github.event_name == 'release') ||
+       (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'))
     runs-on: ubuntu-latest
     environment:
       name: testpypi
@@ -147,8 +150,11 @@ jobs:
     name: Publish to PyPI
     needs: [build-wheels, build-sdist]
     if: >-
-      (github.event_name == 'release') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+      always() &&
+      needs.build-wheels.result == 'success' &&
+      needs.build-sdist.result == 'success' &&
+      ((github.event_name == 'release') ||
+       (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi'))
     runs-on: ubuntu-latest
     environment:
       name: pypi
